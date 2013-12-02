@@ -54,14 +54,15 @@ namespace WPP {
         private:
     };
 
-    class Exception : public std::exception {
+    class SystemError : public std::system_error {
         public:
-            Exception() : pMessage("") {}
-            Exception(const char* pStr) : pMessage(pStr) {}
-            const char* what() const throw () { return pMessage; }
+            SystemError(const char* pMessage,
+                        std::error_code err = std::error_code(errno, std::system_category()))
+                : std::system_error(err)
+                , message(std::string(pMessage) + ": " + err.message()) {}
+            const char* what() const throw () { return message.c_str(); }
         private:
-            const char* pMessage;
-    //        const int pCode;
+            std::string message;
     };
 
     map<string, string> mime;
@@ -229,7 +230,7 @@ namespace WPP {
         } else if (S_ISDIR (st_buf.st_mode)) {
             DIR* dir_d = opendir(actual_path);
 
-            if (dir_d == NULL) throw WPP::Exception("Unable to open / folder");
+            if (dir_d == NULL) throw WPP::SystemError("Unable to open / folder");
 
             std::stringstream out;
             out << "<title>" << new_path << "</title>" << endl;
@@ -455,7 +456,7 @@ namespace WPP {
         int sc = socket(AF_INET, SOCK_STREAM, 0);
 
         if (sc < 0) {
-            throw WPP::Exception("ERROR opening socket");
+            throw WPP::SystemError("ERROR opening socket");
         }
 
         struct sockaddr_in serv_addr, cli_addr;
@@ -463,8 +464,8 @@ namespace WPP {
         serv_addr.sin_addr.s_addr = INADDR_ANY;
         serv_addr.sin_port = htons(*port);
 
-        if (::bind(sc, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != 0) {
-            throw WPP::Exception("ERROR on binding");
+        if (::bind(sc, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+            throw WPP::SystemError("ERROR on binding");
         }
 
         listen(sc, 5);
@@ -476,7 +477,7 @@ namespace WPP {
             newsc = accept(sc, (struct sockaddr *) &cli_addr, &clilen);
 
             if (newsc < 0) {
-                throw WPP::Exception("ERROR on accept");
+                throw WPP::SystemError("ERROR on accept");
             }
 
             // handle new connection

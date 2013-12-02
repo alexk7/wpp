@@ -45,7 +45,7 @@ int main(int argc, const char* argv[]) {
         server.get("/", &web);
         server.all("/dir", "./");
         server.start(5000);
-    } catch(WPP::Exception e) {
+    } catch(const std::exception& e) {
         std::cerr << "WebServer: " << e.what() << std::endl;
     }
     
