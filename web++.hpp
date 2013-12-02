@@ -187,20 +187,15 @@ namespace WPP {
         mime["avi"] = "video/x-msvideo";
         mime["movie"] = "video/x-sgi-movie";
 
-        char* actual_path;
         char* base_path = realpath(req->params.c_str(), NULL);
         string new_path = "";
-        actual_path = realpath(req->params.c_str(), NULL);
+        char* actual_path = realpath(req->params.c_str(), NULL);
 
         auto open_itr = req->query.find("open");
         if(open_itr != req->query.end()) {
             new_path += open_itr->second;
             strcat(actual_path, new_path.c_str());
         }
-
-//        actual_path = realpath(actual_path, NULL);
-
-//        cout << base_path << " " << actual_path << endl;
 
         if(strncmp(base_path, actual_path, strlen(base_path)) > 0) {
             actual_path = base_path;
