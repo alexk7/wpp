@@ -192,8 +192,9 @@ namespace WPP {
         string new_path = "";
         actual_path = realpath(req->params.c_str(), NULL);
 
-        if(req->query.find("open") != req->query.end()) {
-            new_path += req->query["open"];
+        auto open_itr = req->query.find("open");
+        if(open_itr != req->query.end()) {
+            new_path += open_itr->second;
             strcat(actual_path, new_path.c_str());
         }
 
