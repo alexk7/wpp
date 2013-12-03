@@ -19,41 +19,31 @@
 #define BUFSIZE 8096
 
 namespace WPP {
-    struct Request {
-        std::string method;
-        std::string path;
-        std::string params;
-        std::map<std::string, std::string> headers;
-        std::map<std::string, std::string> query;
-        std::map<std::string, std::string> cookies;
-    };
-    struct Response {
-        Response() {
-            code = 200;
-            type = "text/html";
-            body << "";
+    inline void split(std::string str, std::string separator, int max, std::vector<std::string>* results){
+        int i = 0;
+        size_t found = str.find_first_of(separator);
+
+        while (found != std::string::npos){
+            if (found > 0)
+                results->push_back(str.substr(0, found));
+            str = str.substr(found+1);
+            found = str.find_first_of(separator);
+
+            if (max > -1 && ++i == max)
+				break;
         }
-        void send(std::string str) {
-           body << str;
-        };
-        void send(const char* str) {
-           body << str;
-        };
-        int code;
-        std::string type;
-        std::stringstream body;
-    };
-    class SystemError : public std::system_error {
-    public:
-        SystemError(const char* pMessage,
-                    std::error_code err = std::error_code(errno, std::system_category()))
-        : std::system_error(err)
-        , message(std::string(pMessage) + ": " + err.message()) {}
-        const char* what() const throw () { return message.c_str(); }
-    private:
-        std::string message;
-    };
-    std::map<std::string, std::string> create_mime() {
+
+        if (str.length() > 0){
+            results->push_back(str);
+        }
+    }
+    inline std::string trim(std::string s) {
+        s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
+        s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+
+        return s;
+    }
+    inline std::map<std::string, std::string> create_mime() {
 		return {
 			{ "atom", "application/atom+xml" },
 			{ "hqx", "application/mac-binhex40" },
@@ -169,6 +159,38 @@ namespace WPP {
 			{ "movie", "video/x-sgi-movie" },
 		};
 	}
+    struct Request {
+        std::string method;
+        std::string path;
+        std::string params;
+        std::map<std::string, std::string> headers;
+        std::map<std::string, std::string> query;
+        std::map<std::string, std::string> cookies;
+    };
+    struct Response {
+        Response() {
+            code = 200;
+            type = "text/html";
+            body << "";
+        }
+		template <class T>
+        void send(const T& value) {
+           body << value;
+        };
+        int code;
+        std::string type;
+        std::stringstream body;
+    };
+    class SystemError : public std::system_error {
+    public:
+        SystemError(const char* pMessage,
+                    std::error_code err = std::error_code(errno, std::system_category()))
+        : std::system_error(err)
+        , message(std::string(pMessage) + ": " + err.message()) {}
+        const char* what() const throw () { return message.c_str(); }
+    private:
+        std::string message;
+    };
     void list_dir(Request* req, Response* res) {
 		static auto mime = create_mime();
 
@@ -250,37 +272,8 @@ namespace WPP {
             void* main_loop(void*);
             void parse_headers(char*, Request*, Response*);
             bool match_route(Request*, Response*);
-            std::string trim(std::string);
-            void split(std::string, std::string, int, std::vector<std::string>*);
 			std::vector<Route> ROUTES;
 	};
-
-    void Server::split(std::string str, std::string separator, int max, std::vector<std::string>* results){
-        int i = 0;
-        size_t found = str.find_first_of(separator);
-
-        while (found != std::string::npos){
-            if (found > 0){
-                results->push_back(str.substr(0, found));
-            }
-            str = str.substr(found+1);
-            found = str.find_first_of(separator);
-
-            if (max > -1 && ++i == max) break;
-        }
-
-        if (str.length() > 0){
-            results->push_back(str);
-        }
-    }
-
-    std::string Server::trim(std::string s) {
-        s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
-        s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
-
-        return s;
-    }
-
     void Server::parse_headers(char* headers, Request* req, Response* res) {
         int i = 0;
         char * pch;
@@ -289,7 +282,7 @@ namespace WPP {
             if (i++ == 0)  {
                 std::vector<std::string> R;
                 std::string line(pch);
-                this->split(line, " ", 3, &R);
+                split(line, " ", 3, &R);
 
                 if (R.size() != 3) {
     //                throw error
@@ -303,11 +296,11 @@ namespace WPP {
                 // We have GET params here
                 if (pos != std::string::npos)  {
                     std::vector<std::string> Q1;
-                    this->split(req->path.substr(pos + 1), "&", -1, &Q1);
+                    split(req->path.substr(pos + 1), "&", -1, &Q1);
 
                     for (std::vector<std::string>::size_type q = 0; q < Q1.size(); q++) {
                         std::vector<std::string> Q2;
-                        this->split(Q1[q], "=", -1, &Q2);
+                        split(Q1[q], "=", -1, &Q2);
 
                         if (Q2.size() == 2) {
                             req->query[Q2[0]] = Q2[1];
@@ -319,7 +312,7 @@ namespace WPP {
             } else {
                 std::vector<std::string> R;
                 std::string line(pch);
-                this->split(line, ": ", 2, &R);
+                split(line, ": ", 2, &R);
 
                 if (R.size() == 2) {
                     req->headers[R[0]] = R[1];
@@ -327,11 +320,11 @@ namespace WPP {
                     // Yeah, cookies!
                     if (R[0] == "Cookie") {
                         std::vector<std::string> C1;
-                        this->split(R[1], "; ", -1, &C1);
+                        split(R[1], "; ", -1, &C1);
                         
                         for (std::vector<std::string>::size_type c = 0; c < C1.size(); c++) {
                             std::vector<std::string> C2;
-                            this->split(C1[c], "=", 2, &C2);
+                            split(C1[c], "=", 2, &C2);
                             
                             req->cookies[C2[0]] = C2[1];
                         }
